@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free Taking Scorecard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap');
+:root {
+  --pitch:#2d6a2d;--pitch-light:#357a35;--line:rgba(255,255,255,0.22);
+  --gold:#e8b84b;--gold-dim:rgba(232,184,75,0.13);
+  --white:#f5f5f0;--grey:#8a9a8a;--bg:#111a11;--card:#1a261a;--card2:#1f2e1f;
+  --scored:#4fc46a;--missed:#d94f4f;--scored-bg:rgba(79,196,106,0.15);--missed-bg:rgba(217,79,79,0.15);
+  --radius:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--white);font-family:'Barlow',sans-serif;min-height:100vh;}
+
+/* ── VIEWS ── */
+.view{display:none;} .view.active{display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── HEADER ── */
+header{background:var(--card);border-bottom:2px solid var(--gold);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;}
+.header-left{display:flex;align-items:baseline;gap:10px;}
+header h1{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;}
+.nav-btns{display:flex;gap:6px;}
+.btn{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;padding:6px 13px;border-radius:var(--radius);border:none;cursor:pointer;transition:all .15s;}
+.btn-ghost{background:transparent;border:1px solid var(--grey);color:var(--grey);}
+.btn-ghost:hover{border-color:var(--white);color:var(--white);}
+.btn-ghost.active-nav{border-color:var(--gold);color:var(--gold);}
+.btn-gold{background:var(--gold);color:var(--bg);}
+.btn-gold:hover{background:#f0ca6a;}
+.btn-danger{background:transparent;border:1px solid var(--missed);color:var(--missed);}
+.btn-danger:hover{background:var(--missed-bg);}
+.btn-green{background:var(--scored);color:#fff;}
+.btn-green:hover{background:#3aad58;}
+
+/* ── PLAYER BADGE ── */
+.player-badge{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--grey);cursor:pointer;}
+.player-badge strong{color:var(--gold);}
+.player-badge:hover span{color:var(--white);}
+
+/* ══ PROFILE VIEW ══ */
+#viewProfile{align-items:center;justify-content:center;padding:40px 20px;}
+.profile-card{background:var(--card);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:36px;width:100%;max-width:420px;}
+.profile-card h2{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.4rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;}
+.profile-card p{color:var(--grey);font-size:.85rem;margin-bottom:28px;}
+.field{margin-bottom:18px;}
+.field label{display:block;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--grey);margin-bottom:6px;}
+.field input, .field select{width:100%;background:var(--card2);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);padding:10px 12px;color:var(--white);font-family:'Barlow',sans-serif;font-size:.95rem;outline:none;}
+.field input:focus, .field select:focus{border-color:var(--gold);}
+.field select option{background:var(--bg);}
+
+/* ══ SCORECARD VIEW ══ */
+#viewScore{flex-direction:column;}
+.score-layout{display:grid;grid-template-columns:1fr 320px;flex:1;overflow:hidden;}
+.pitch-panel{padding:20px;display:flex;flex-direction:column;gap:14px;}
+.pitch-wrap{position:relative;background:var(--pitch);border-radius:10px;overflow:hidden;border:2px solid rgba(255,255,255,.12);flex:1;min-height:420px;}
+.pitch-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+.zone-label{position:absolute;left:10px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.72rem;letter-spacing:.1em;color:rgba(255,255,255,.4);text-transform:uppercase;pointer-events:none;}
+.free-spots{position:absolute;inset:0;}
+.spot{position:absolute;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.82rem;color:rgba(255,255,255,.7);user-select:none;}
+.spot:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-dim);transform:translate(-50%,-50%) scale(1.15);z-index:10;}
+.spot.scored{background:var(--scored-bg);border-color:var(--scored);color:var(--scored);}
+.spot.missed{background:var(--missed-bg);border-color:var(--missed);color:var(--missed);}
+.spot.active-take{border-color:var(--gold);background:var(--gold-dim);animation:pulse .8s infinite alternate;}
+@keyframes pulse{from{box-shadow:0 0 0 0 rgba(232,184,75,.4);}to{box-shadow:0 0 0 8px rgba(232,184,75,0);}}
+.take-prompt{display:none;position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--gold);border-radius:8px;padding:10px 16px;gap:8px;align-items:center;z-index:20;white-space:nowrap;flex-direction:column;}
+.take-prompt.visible{display:flex;}
+.take-prompt-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.95rem;color:var(--gold);text-align:center;}
+.take-btns{display:flex;gap:8px;}
+.btn-scored{background:var(--scored);color:#fff;font-size:.95rem;padding:7px 18px;}
+.btn-missed-take{background:var(--missed);color:#fff;font-size:.95rem;padding:7px 18px;}
+.btn-skip{background:transparent;border:1px solid var(--grey);color:var(--grey);font-size:.78rem;padding:5px 10px;}
+
+/* SIDEBAR */
+.sidebar{background:var(--card);border-left:1px solid rgba(255,255,255,.08);overflow-y:auto;display:flex;flex-direction:column;}
+.stat-block{padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.07);}
+.stat-block h2{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--grey);margin-bottom:12px;}
+.score-main{display:flex;align-items:baseline;gap:6px;}
+.score-num{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:3.5rem;line-height:1;color:var(--gold);}
+.score-denom{font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;color:var(--grey);}
+.score-pct{margin-top:3px;font-size:.9rem;color:var(--grey);}
+.score-pct span{color:var(--white);font-weight:600;}
+.prog-bar-wrap{background:rgba(255,255,255,.08);border-radius:4px;height:7px;margin-top:8px;overflow:hidden;}
+.prog-bar{height:100%;border-radius:4px;background:var(--gold);transition:width .4s ease;}
+.zone-rows{display:flex;flex-direction:column;gap:9px;}
+.zone-row{display:flex;flex-direction:column;gap:4px;}
+.zone-row-header{display:flex;justify-content:space-between;align-items:baseline;}
+.zone-name{font-size:.8rem;font-weight:600;color:var(--white);}
+.zone-score{font-family:'Barlow Condensed',sans-serif;font-size:.82rem;color:var(--grey);}
+.zone-bar-wrap{background:rgba(255,255,255,.07);border-radius:3px;height:5px;overflow:hidden;}
+.zone-bar{height:100%;border-radius:3px;transition:width .4s ease;}
+.bar-14{background:#e8b84b;}.bar-21{background:#4fc46a;}.bar-45{background:#4aade0;}.bar-mid{background:#a084e8;}
+.angle-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+.angle-cell{background:var(--card2);border-radius:var(--radius);padding:9px 6px;text-align:center;}
+.angle-cell-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--grey);margin-bottom:3px;}
+.angle-cell-score{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1rem;color:var(--white);}
+.angle-cell-pct{font-size:.68rem;color:var(--grey);margin-top:2px;}
+.thirds-wrap{display:flex;gap:5px;}
+.third-cell{flex:1;background:var(--card2);border-radius:var(--radius);padding:9px 5px;text-align:center;position:relative;overflow:hidden;}
+.third-cell-label{font-size:.63rem;text-transform:uppercase;letter-spacing:.06em;color:var(--grey);margin-bottom:3px;}
+.third-cell-score{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.1rem;}
+.third-cell-pct{font-size:.68rem;color:var(--grey);}
+.third-bar{position:absolute;bottom:0;left:0;right:0;height:3px;}
+.insight{background:var(--gold-dim);border:1px solid rgba(232,184,75,.3);border-radius:var(--radius);padding:9px 12px;font-size:.78rem;color:var(--white);line-height:1.55;}
+.insight strong{color:var(--gold);}
+.log-wrap{max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;}
+.log-item{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:4px;font-size:.76rem;background:var(--card2);}
+.log-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.log-dot.scored{background:var(--scored);}.log-dot.missed{background:var(--missed);}
+.log-text{color:var(--white);flex:1;}
+.log-seq{color:var(--grey);font-size:.68rem;margin-left:auto;}
+.log-empty{color:var(--grey);font-size:.78rem;text-align:center;padding:14px;}
+.hint{background:rgba(255,255,255,.04);border-radius:var(--radius);padding:9px 12px;font-size:.76rem;color:var(--grey);line-height:1.55;}
+.session-done-bar{background:var(--card2);border-top:1px solid var(--gold);padding:10px 20px;display:flex;align-items:center;gap:10px;justify-content:space-between;flex-shrink:0;}
+.session-done-bar.hidden{display:none;}
+.session-done-msg{font-size:.82rem;color:var(--grey);}
+.session-done-msg strong{color:var(--gold);}
+
+/* ══ HISTORY VIEW ══ */
+#viewHistory{padding:24px;}
+.history-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.history-header h2{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.4rem;letter-spacing:.04em;text-transform:uppercase;}
+.player-select-wrap{display:flex;gap:8px;align-items:center;}
+.player-select-wrap select{background:var(--card2);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);padding:7px 10px;color:var(--white);font-family:'Barlow',sans-serif;font-size:.85rem;outline:none;}
+.no-data{text-align:center;padding:60px 20px;color:var(--grey);font-size:.9rem;}
+.no-data strong{display:block;font-size:1.2rem;color:var(--white);margin-bottom:8px;}
+
+/* Summary cards */
+.summary-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.sum-card{background:var(--card);border-radius:var(--radius);padding:16px;text-align:center;}
+.sum-card-val{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:2rem;color:var(--gold);}
+.sum-card-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--grey);margin-top:3px;}
+
+/* Sessions table */
+.sessions-table{width:100%;border-collapse:collapse;margin-bottom:24px;}
+.sessions-table th{font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);text-align:left;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.08);}
+.sessions-table td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.05);font-size:.83rem;vertical-align:middle;}
+.sessions-table tr:hover td{background:rgba(255,255,255,.03);}
+.pct-chip{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.85rem;padding:2px 8px;border-radius:4px;}
+.pct-high{background:rgba(79,196,106,.2);color:var(--scored);}
+.pct-mid{background:rgba(232,184,75,.2);color:var(--gold);}
+.pct-low{background:rgba(217,79,79,.2);color:var(--missed);}
+
+/* Trend chart */
+.trend-section{margin-bottom:24px;}
+.trend-section h3{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.82rem;letter-spacing:.1em;text-transform:uppercase;color:var(--grey);margin-bottom:12px;}
+.chart-wrap{background:var(--card);border-radius:var(--radius);padding:16px;overflow-x:auto;}
+canvas{display:block;max-width:100%;}
+
+/* Share modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;}
+.modal-overlay.visible{display:flex;}
+.modal{background:var(--card);border:1px solid var(--gold);border-radius:10px;padding:28px;max-width:480px;width:90%;}
+.modal h3{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.2rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;}
+.modal p{font-size:.83rem;color:var(--grey);margin-bottom:16px;line-height:1.6;}
+.code-box{background:var(--bg);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);padding:12px;font-family:monospace;font-size:.72rem;word-break:break-all;color:var(--white);max-height:120px;overflow-y:auto;margin-bottom:14px;line-height:1.4;}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;}
+.import-area{width:100%;background:var(--bg);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);padding:10px;color:var(--white);font-family:monospace;font-size:.72rem;height:90px;resize:none;outline:none;margin-bottom:12px;}
+.import-area:focus{border-color:var(--gold);}
+
+@media(max-width:800px){
+  .score-layout{grid-template-columns:1fr;}
+  .sidebar{border-left:none;border-top:1px solid rgba(255,255,255,.08);}
+  .summary-cards{grid-template-columns:repeat(2,1fr);}
+}
+
+  /* ── WEBVIEW BANNER ── */
+  #webviewBanner{display:none;background:#1a1a00;border-bottom:2px solid var(--gold);padding:10px 16px;align-items:center;gap:10px;font-size:.82rem;color:var(--white);position:relative;z-index:200;}
+  #webviewBanner.show{display:flex!important;}
+  #webviewBanner strong{color:var(--gold);}
+  .banner-steps{color:var(--grey);font-size:.75rem;margin-top:2px;}
+  #webviewBanner .dismiss{margin-left:auto;background:transparent;border:1px solid var(--grey);color:var(--grey);font-family:'Barlow Condensed',sans-serif;font-size:.75rem;padding:4px 10px;border-radius:4px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+  #webviewBanner .dismiss:hover{border-color:var(--white);color:var(--white);}
+</style>
+</head>
+<body>
+
+<div id="webviewBanner">
+  <div>
+    <div>⚠️ <strong>Open in your browser</strong> for full functionality — sessions won't save inside WhatsApp or Facebook.</div>
+    <div class="banner-steps">iOS: tap <strong>···</strong> (top right) → <em>Open in Safari</em> &nbsp;·&nbsp; Android: tap <strong>⋮</strong> → <em>Open in Chrome</em></div>
+  </div>
+  <button class="dismiss" onclick="document.getElementById('webviewBanner').classList.remove('show')">Got it</button>
+</div>
+
+<!-- ══ PROFILE VIEW ══ -->
+<div id="viewProfile" class="view active" style="display:flex;">
+  <div style="background:var(--card);border-bottom:2px solid var(--gold);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:baseline;gap:10px;">
+      <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.5rem;letter-spacing:.04em;text-transform:uppercase;">Free Taking Scorecard</h1>
+    </div>
+    <div style="font-size:.75rem;color:var(--grey);">Hurling · Performance Tracker</div>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;">
+    <div class="profile-card">
+      <h2>Player Profile</h2>
+      <p>Set up your profile to track performance over time.</p>
+      <div class="field">
+        <label>Full Name</label>
+        <input type="text" id="pName" placeholder="e.g. Dara Breen" />
+      </div>
+      <div class="field">
+        <label>Age</label>
+        <input type="number" id="pAge" placeholder="e.g. 14" min="6" max="60"/>
+      </div>
+      <div class="field">
+        <label>Hurling Team / Club</label>
+        <input type="text" id="pTeam" placeholder="e.g. Céide Lámh Dhearg"/>
+      </div>
+      <div class="field">
+        <label>Position</label>
+        <select id="pPos">
+          <option value="">Select position</option>
+          <option>Goalkeeper</option><option>Corner Back</option><option>Full Back</option>
+          <option>Half Back</option><option>Midfield</option><option>Half Forward</option>
+          <option>Corner Forward</option><option>Full Forward</option>
+        </select>
+      </div>
+      <button class="btn btn-gold" style="width:100%;padding:11px;" onclick="saveProfile()">Start Session →</button>
+      <div id="profileErr" style="color:var(--missed);font-size:.78rem;margin-top:10px;display:none;">Please enter your name and team.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCORE VIEW ══ -->
+<div id="viewScore" class="view">
+  <header>
+    <div class="header-left">
+      <h1>Free Taking</h1>
+      <span style="font-size:.75rem;color:var(--grey);text-transform:uppercase;letter-spacing:.06em;">20 Frees</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div class="player-badge" onclick="switchView('viewHistory')">
+        <strong id="headerPlayerName">—</strong>
+        <span style="font-size:.75rem;">· History ›</span>
+      </div>
+      <button class="btn btn-ghost" onclick="switchView('viewHistory')">History</button>
+      <button class="btn btn-ghost" onclick="showImportModal()">Import</button>
+      <button class="btn btn-danger" onclick="resetSession()">Reset</button>
+    </div>
+  </header>
+
+  <div class="score-layout" style="flex:1;">
+    <!-- Pitch -->
+    <div class="pitch-panel">
+      <div class="pitch-wrap" id="pitchWrap">
+        <svg class="pitch-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <line x1="0" y1="20" x2="100" y2="20" stroke="rgba(255,255,255,0.2)" stroke-width="0.3"/>
+          <line x1="0" y1="42" x2="100" y2="42" stroke="rgba(255,255,255,0.2)" stroke-width="0.3"/>
+          <line x1="0" y1="62" x2="100" y2="62" stroke="rgba(255,255,255,0.2)" stroke-width="0.3"/>
+          <line x1="0" y1="80" x2="100" y2="80" stroke="rgba(255,255,255,0.2)" stroke-width="0.3"/>
+          <rect x="38" y="88" width="24" height="12" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.4"/>
+          <rect x="28" y="84" width="44" height="16" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.4"/>
+          <path d="M 32 84 A 18 18 0 0 1 68 84" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.4"/>
+          <circle cx="50" cy="80" r="0.7" fill="rgba(255,255,255,0.5)"/>
+        </svg>
+        <span class="zone-label" style="top:4%">Midfield</span>
+        <span class="zone-label" style="top:27%">45</span>
+        <span class="zone-label" style="top:48%">21</span>
+        <span class="zone-label" style="top:68%">14</span>
+        <div class="free-spots" id="freeSpots"></div>
+        <div class="take-prompt" id="takePrompt">
+          <div class="take-prompt-name" id="promptName">Position 1</div>
+          <div class="take-btns">
+            <button class="btn btn-scored" onclick="recordTake(true)">✓ Scored</button>
+            <button class="btn btn-missed-take" onclick="recordTake(false)">✗ Missed</button>
+            <button class="btn btn-skip" onclick="cancelTake()">Cancel</button>
+          </div>
+        </div>
+      </div>
+      <div class="hint">Click a position → record scored or missed. Click again to undo.</div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="stat-block">
+        <h2>Session Score</h2>
+        <div class="score-main">
+          <div class="score-num" id="scoreNum">0</div>
+          <div class="score-denom">/ <span id="scoreDenom">0</span></div>
+        </div>
+        <div class="score-pct">Conversion: <span id="scorePct">—</span></div>
+        <div class="prog-bar-wrap"><div class="prog-bar" id="progBar" style="width:0%"></div></div>
+      </div>
+      <div class="stat-block">
+        <h2>By Distance</h2>
+        <div class="zone-rows">
+          <div class="zone-row"><div class="zone-row-header"><span class="zone-name">14 Yards</span><span class="zone-score" id="z14score">0/0</span></div><div class="zone-bar-wrap"><div class="zone-bar bar-14" id="z14bar" style="width:0%"></div></div></div>
+          <div class="zone-row"><div class="zone-row-header"><span class="zone-name">21 Yards</span><span class="zone-score" id="z21score">0/0</span></div><div class="zone-bar-wrap"><div class="zone-bar bar-21" id="z21bar" style="width:0%"></div></div></div>
+          <div class="zone-row"><div class="zone-row-header"><span class="zone-name">45 Yards</span><span class="zone-score" id="z45score">0/0</span></div><div class="zone-bar-wrap"><div class="zone-bar bar-45" id="z45bar" style="width:0%"></div></div></div>
+          <div class="zone-row"><div class="zone-row-header"><span class="zone-name">Midfield</span><span class="zone-score" id="zMidscore">0/0</span></div><div class="zone-bar-wrap"><div class="zone-bar bar-mid" id="zMidbar" style="width:0%"></div></div></div>
+        </div>
+      </div>
+      <div class="stat-block">
+        <h2>By Angle</h2>
+        <div class="angle-grid">
+          <div class="angle-cell"><div class="angle-cell-label">◀ Left</div><div class="angle-cell-score" id="aLeftScore">—</div><div class="angle-cell-pct" id="aLeftPct"></div></div>
+          <div class="angle-cell"><div class="angle-cell-label">▲ Centre</div><div class="angle-cell-score" id="aCentreScore">—</div><div class="angle-cell-pct" id="aCentrePct"></div></div>
+          <div class="angle-cell"><div class="angle-cell-label">▶ Right</div><div class="angle-cell-score" id="aRightScore">—</div><div class="angle-cell-pct" id="aRightPct"></div></div>
+        </div>
+      </div>
+      <div class="stat-block">
+        <h2>Focus (Early / Mid / Late)</h2>
+        <div class="thirds-wrap">
+          <div class="third-cell"><div class="third-cell-label">First 7</div><div class="third-cell-score" id="t1score" style="color:var(--grey)">—</div><div class="third-cell-pct" id="t1pct"></div><div class="third-bar" id="t1bar"></div></div>
+          <div class="third-cell"><div class="third-cell-label">Middle 6</div><div class="third-cell-score" id="t2score" style="color:var(--grey)">—</div><div class="third-cell-pct" id="t2pct"></div><div class="third-bar" id="t2bar"></div></div>
+          <div class="third-cell"><div class="third-cell-label">Last 7</div><div class="third-cell-score" id="t3score" style="color:var(--grey)">—</div><div class="third-cell-pct" id="t3pct"></div><div class="third-bar" id="t3bar"></div></div>
+        </div>
+      </div>
+      <div class="stat-block"><h2>Insight</h2><div class="insight" id="insightBox">Start recording frees to see insights.</div></div>
+      <div class="stat-block"><h2>Shot Log</h2><div class="log-wrap" id="logWrap"><div class="log-empty">No frees recorded yet.</div></div></div>
+    </div>
+  </div>
+
+  <!-- Save bar (appears when session complete or has data) -->
+  <div class="session-done-bar hidden" id="sessionDoneBar">
+    <div class="session-done-msg" id="sessionDoneMsg">Session in progress</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost" onclick="showShareModal()">Share Code</button>
+      <button class="btn btn-gold" onclick="saveSession()">Save Session</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HISTORY VIEW ══ -->
+<div id="viewHistory" class="view">
+  <header>
+    <div class="header-left"><h1>Session History</h1></div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-ghost" onclick="showImportModal()">Import Code</button>
+      <button class="btn btn-gold" onclick="switchView('viewScore')">New Session</button>
+    </div>
+  </header>
+  <div style="padding:24px;" id="historyContent"></div>
+</div>
+
+<!-- ══ SHARE MODAL ══ -->
+<div class="modal-overlay" id="shareModal">
+  <div class="modal">
+    <h3>Share Session</h3>
+    <p>Copy this code and send it to your coach or paste it on another device to import this session into the history view.</p>
+    <div class="code-box" id="shareCodeBox"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('shareModal')">Close</button>
+      <button class="btn btn-gold" onclick="copyCode()">Copy Code</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ IMPORT MODAL ══ -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <h3>Import Session</h3>
+    <p>Paste a session code shared by a player to add it to your history.</p>
+    <textarea class="import-area" id="importArea" placeholder="Paste session code here…"></textarea>
+    <div id="importErr" style="color:var(--missed);font-size:.78rem;margin-bottom:10px;display:none;">Invalid code. Please check and try again.</div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('importModal')">Cancel</button>
+      <button class="btn btn-gold" onclick="importCode()">Import</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── POSITIONS ──
+const POSITIONS = [
+  {id:1,label:"1",x:38,y:55,zone:"21",angle:"centre"},
+  {id:2,label:"2",x:50,y:55,zone:"21",angle:"centre"},
+  {id:3,label:"3",x:62,y:55,zone:"21",angle:"centre"},
+  {id:4,label:"4",x:38,y:37,zone:"45",angle:"centre"},
+  {id:5,label:"5",x:50,y:37,zone:"45",angle:"centre"},
+  {id:6,label:"6",x:62,y:37,zone:"45",angle:"centre"},
+  {id:7,label:"7",x:72,y:62,zone:"21",angle:"right"},
+  {id:8,label:"8",x:81,y:62,zone:"21",angle:"right"},
+  {id:9,label:"9",x:90,y:62,zone:"21",angle:"right"},
+  {id:10,label:"10",x:74,y:50,zone:"45",angle:"right"},
+  {id:11,label:"11",x:83,y:50,zone:"45",angle:"right"},
+  {id:12,label:"12",x:92,y:50,zone:"45",angle:"right"},
+  {id:13,label:"13",x:10,y:62,zone:"21",angle:"left"},
+  {id:14,label:"14",x:19,y:62,zone:"21",angle:"left"},
+  {id:15,label:"15",x:28,y:62,zone:"21",angle:"left"},
+  {id:16,label:"16",x:8,y:50,zone:"45",angle:"left"},
+  {id:17,label:"17",x:17,y:50,zone:"45",angle:"left"},
+  {id:18,label:"18",x:26,y:50,zone:"45",angle:"left"},
+  {id:19,label:"19",x:38,y:12,zone:"mid",angle:"centre"},
+  {id:20,label:"20",x:62,y:12,zone:"mid",angle:"centre"},
+];
+
+// ── STATE ──
+let profile = null;
+let results = {};
+let activeTake = null;
+let shotLog = [];
+let shotSeq = 0;
+let trendChart = null;
+
+// ── STORAGE HELPERS ──
+const STORE_KEY = 'ftsc_v1';
+function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function loadStore(){try{return JSON.parse(lsGet(STORE_KEY)||'{"sessions":[]}')}catch(e){return{sessions:[]}}}
+function saveStore(s){lsSet(STORE_KEY,JSON.stringify(s));}
+
+// ── VIEWS ──
+function switchView(id){
+  document.querySelectorAll('.view').forEach(v=>{v.classList.remove('active');v.style.display='none';});
+  const target=document.getElementById(id);
+  target.classList.add('active');
+  target.style.display='flex';
+  if(id==='viewHistory') renderHistory();
+}
+
+// ── PROFILE ──
+function saveProfile(){
+  const name=document.getElementById('pName').value.trim();
+  const team=document.getElementById('pTeam').value.trim();
+  if(!name||!team){document.getElementById('profileErr').style.display='block';return;}
+  document.getElementById('profileErr').style.display='none';
+  profile={
+    name,
+    age: document.getElementById('pAge').value||'',
+    team,
+    pos: document.getElementById('pPos').value||''
+  };
+  lsSet('ftsc_profile',JSON.stringify(profile));
+  document.getElementById('headerPlayerName').textContent=name;
+  switchView('viewScore');
+  renderSpots();
+  updateStats();
+}
+
+// ── SPOTS ──
+function renderSpots(){
+  const c=document.getElementById('freeSpots');
+  c.innerHTML='';
+  POSITIONS.forEach(pos=>{
+    const el=document.createElement('div');
+    el.className='spot';
+    el.id='spot-'+pos.id;
+    el.textContent=pos.label;
+    el.style.left=pos.x+'%';
+    el.style.top=pos.y+'%';
+    el.dataset.id=pos.id;
+    if(results[pos.id]===true){el.classList.add('scored');el.textContent='✓';}
+    if(results[pos.id]===false){el.classList.add('missed');el.textContent='✗';}
+    if(activeTake===pos.id){el.classList.add('active-take');el.textContent=pos.label;}
+    el.addEventListener('click',()=>handleSpotClick(pos.id));
+    c.appendChild(el);
+  });
+}
+
+function handleSpotClick(id){
+  if(results[id]!==undefined){
+    delete results[id];
+    shotLog=shotLog.filter(s=>s.posId!==id);
+    activeTake=null;closePrompt();renderSpots();updateStats();return;
+  }
+  activeTake=id;
+  const pos=POSITIONS.find(p=>p.id===id);
+  const zl={'14':'14 yards','21':'21 yards','45':'45 yards','mid':'Midfield'};
+  document.getElementById('promptName').textContent=`Pos ${pos.label} · ${zl[pos.zone]} · ${pos.angle.charAt(0).toUpperCase()+pos.angle.slice(1)}`;
+  document.getElementById('takePrompt').classList.add('visible');
+  renderSpots();
+}
+function recordTake(scored){
+  if(activeTake===null)return;
+  results[activeTake]=scored;
+  shotSeq++;
+  shotLog.push({seq:shotSeq,posId:activeTake,scored,ts:new Date().toISOString()});
+  activeTake=null;closePrompt();renderSpots();updateStats();
+}
+function cancelTake(){activeTake=null;closePrompt();renderSpots();}
+function closePrompt(){document.getElementById('takePrompt').classList.remove('visible');}
+
+// ── STATS ──
+function pct(s,t){if(!t)return null;return Math.round((s/t)*100);}
+function fmtPct(p){return p===null?'—':p+'%';}
+function fmtScore(s,t){return t===0?'0/0':`${s}/${t}`;}
+function colourFromPct(p){if(p===null)return'var(--grey)';if(p>=75)return'var(--scored)';if(p>=50)return'var(--gold)';return'var(--missed)';}
+
+function updateStats(){
+  const taken=Object.keys(results).length;
+  const scored=Object.values(results).filter(Boolean).length;
+  document.getElementById('scoreNum').textContent=scored;
+  document.getElementById('scoreDenom').textContent=taken;
+  const p=pct(scored,taken);
+  document.getElementById('scorePct').textContent=fmtPct(p);
+  document.getElementById('progBar').style.width=(taken===0?0:(scored/20)*100)+'%';
+
+  const zones={'14':[0,0],'21':[0,0],'45':[0,0],'mid':[0,0]};
+  const angles={left:[0,0],centre:[0,0],right:[0,0]};
+  Object.entries(results).forEach(([idStr,sc])=>{
+    const pos=POSITIONS.find(p=>p.id==idStr);if(!pos)return;
+    zones[pos.zone][1]++;if(sc)zones[pos.zone][0]++;
+    angles[pos.angle][1]++;if(sc)angles[pos.angle][0]++;
+  });
+
+  const zm={'14':'z14','21':'z21','45':'z45','mid':'zMid'};
+  Object.entries(zones).forEach(([z,[s,t]])=>{
+    const k=zm[z];
+    document.getElementById(k+'score').textContent=fmtScore(s,t);
+    document.getElementById(k+'bar').style.width=(pct(s,t)??0)+'%';
+  });
+
+  const am={left:'aLeft',centre:'aCentre',right:'aRight'};
+  Object.entries(angles).forEach(([a,[s,t]])=>{
+    const k=am[a];const pp=pct(s,t);
+    document.getElementById(k+'Score').textContent=fmtScore(s,t);
+    document.getElementById(k+'Pct').textContent=fmtPct(pp);
+    document.getElementById(k+'Score').style.color=colourFromPct(pp);
+  });
+
+  const f7=shotLog.slice(0,7),m6=shotLog.slice(7,13),l7=shotLog.slice(13);
+  [f7,m6,l7].forEach((shots,i)=>{
+    const s=shots.filter(x=>x.scored).length,t=shots.length,pp=pct(s,t);
+    const id='t'+(i+1);
+    const el=document.getElementById(id+'score');
+    el.textContent=fmtScore(s,t);el.style.color=colourFromPct(pp);
+    document.getElementById(id+'pct').textContent=fmtPct(pp);
+    document.getElementById(id+'bar').style.background=t?colourFromPct(pp):'transparent';
+  });
+
+  updateInsight(scored,taken,zones,angles);
+  updateLog();
+
+  // Show save bar if any data
+  const bar=document.getElementById('sessionDoneBar');
+  if(taken>0){
+    bar.classList.remove('hidden');
+    const msg=taken<20?`${taken}/20 recorded — save anytime`:`Session complete! ${scored}/20 (${p}%) — save to history`;
+    document.getElementById('sessionDoneMsg').innerHTML=`<strong>${msg}</strong>`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+function updateInsight(scored,taken,zones,angles){
+  const el=document.getElementById('insightBox');
+  if(taken===0){el.innerHTML='Start recording frees to see insights.';return;}
+  const lines=[];
+  const overall=pct(scored,taken);
+  lines.push(`<strong>${scored}/${taken}</strong> converted (${overall}%).`);
+  const zoneArr=Object.entries(zones).map(([z,[s,t]])=>({z,s,t,p:pct(s,t)})).filter(x=>x.t>0);
+  if(zoneArr.length>1){
+    const best=zoneArr.reduce((a,b)=>b.p>a.p?b:a);
+    const worst=zoneArr.reduce((a,b)=>b.p<a.p?b:a);
+    const zl={'14':'14-yard','21':'21-yard','45':'45-yard','mid':'Midfield'};
+    if(best.p!==worst.p)lines.push(`Best at <strong>${zl[best.z]}</strong> (${best.p}%), toughest from <strong>${zl[worst.z]}</strong> (${worst.p}%).`);
+  }
+  const angArr=Object.entries(angles).map(([a,[s,t]])=>({a,s,t,p:pct(s,t)})).filter(x=>x.t>0);
+  if(angArr.length>1){
+    const bestA=angArr.reduce((a,b)=>b.p>a.p?b:a);
+    lines.push(`Strongest angle: <strong>${bestA.a}</strong> (${bestA.p}%).`);
+  }
+  if(shotLog.length>=7){
+    const f7=shotLog.slice(0,7),l=shotLog.slice(-Math.min(7,shotLog.length));
+    const pF=pct(f7.filter(x=>x.scored).length,f7.length);
+    const pL=pct(l.filter(x=>x.scored).length,l.length);
+    if(pL>pF+10)lines.push(`📈 Getting <strong>sharper</strong> through the session.`);
+    else if(pF>pL+10)lines.push(`📉 <strong>Fading</strong> — stronger early than late.`);
+    else lines.push(`🎯 Consistent across the session.`);
+  }
+  el.innerHTML=lines.join(' ');
+}
+
+function updateLog(){
+  const wrap=document.getElementById('logWrap');
+  if(shotLog.length===0){wrap.innerHTML='<div class="log-empty">No frees recorded yet.</div>';return;}
+  wrap.innerHTML='';
+  [...shotLog].reverse().forEach(entry=>{
+    const pos=POSITIONS.find(p=>p.id===entry.posId);
+    const zl={'14':'14y','21':'21y','45':'45y','mid':'Mid'}[pos.zone];
+    const div=document.createElement('div');div.className='log-item';
+    div.innerHTML=`<div class="log-dot ${entry.scored?'scored':'missed'}"></div><div class="log-text">Pos ${pos.label} · ${zl} · ${pos.angle}</div><div class="log-seq">#${entry.seq}</div>`;
+    wrap.appendChild(div);
+  });
+}
+
+// ── SAVE SESSION ──
+function buildSessionObj(){
+  const taken=Object.keys(results).length;
+  const scored=Object.values(results).filter(Boolean).length;
+  const zones={'14':[0,0],'21':[0,0],'45':[0,0],'mid':[0,0]};
+  const angles={left:[0,0],centre:[0,0],right:[0,0]};
+  Object.entries(results).forEach(([idStr,sc])=>{
+    const pos=POSITIONS.find(p=>p.id==idStr);if(!pos)return;
+    zones[pos.zone][1]++;if(sc)zones[pos.zone][0]++;
+    angles[pos.angle][1]++;if(sc)angles[pos.angle][0]++;
+  });
+  const f7=shotLog.slice(0,7),m6=shotLog.slice(7,13),l7=shotLog.slice(13);
+  return {
+    id: Date.now(),
+    date: new Date().toISOString(),
+    profile: {...profile},
+    scored, taken,
+    pct: pct(scored,taken),
+    zones, angles,
+    thirds: [
+      {s:f7.filter(x=>x.scored).length,t:f7.length},
+      {s:m6.filter(x=>x.scored).length,t:m6.length},
+      {s:l7.filter(x=>x.scored).length,t:l7.length}
+    ],
+    results: {...results},
+    shotLog: [...shotLog]
+  };
+}
+
+function saveSession(){
+  if(Object.keys(results).length===0){alert('No frees recorded yet.');return;}
+  const store=loadStore();
+  const session=buildSessionObj();
+  store.sessions.push(session);
+  saveStore(store);
+  alert(`Session saved! ${session.scored}/${session.taken} (${session.pct}%)`);
+}
+
+function resetSession(){
+  if(!confirm('Reset current session?'))return;
+  results={};shotLog=[];shotSeq=0;activeTake=null;
+  closePrompt();renderSpots();updateStats();
+}
+
+// ── SHARE / IMPORT ──
+function showShareModal(){
+  if(Object.keys(results).length===0){alert('No data to share yet.');return;}
+  const session=buildSessionObj();
+  const code=btoa(JSON.stringify(session));
+  document.getElementById('shareCodeBox').textContent=code;
+  document.getElementById('shareModal').classList.add('visible');
+}
+function copyCode(){
+  const code=document.getElementById('shareCodeBox').textContent;
+  navigator.clipboard.writeText(code).then(()=>alert('Code copied!')).catch(()=>{
+    document.getElementById('shareCodeBox').select();document.execCommand('copy');alert('Code copied!');
+  });
+}
+function showImportModal(){
+  document.getElementById('importArea').value='';
+  document.getElementById('importErr').style.display='none';
+  document.getElementById('importModal').classList.add('visible');
+}
+function importCode(){
+  const raw=document.getElementById('importArea').value.trim();
+  try{
+    const session=JSON.parse(atob(raw));
+    if(!session.profile||session.scored===undefined)throw new Error('bad');
+    const store=loadStore();
+    // Avoid duplicate by id
+    if(!store.sessions.find(s=>s.id===session.id)){
+      store.sessions.push(session);saveStore(store);
+    }
+    closeModal('importModal');
+    alert(`Imported session for ${session.profile.name} (${session.scored}/${session.taken})`);
+    switchView('viewHistory');
+  }catch(e){
+    document.getElementById('importErr').style.display='block';
+  }
+}
+function closeModal(id){document.getElementById(id).classList.remove('visible');}
+
+// ── HISTORY VIEW ──
+function renderHistory(){
+  const store=loadStore();
+  const sessions=store.sessions.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const el=document.getElementById('historyContent');
+
+  if(sessions.length===0){
+    el.innerHTML='<div class="no-data"><strong>No sessions yet</strong>Complete and save a session, or import a code from a player to see history here.</div>';
+    return;
+  }
+
+  // Group by player
+  const players={};
+  sessions.forEach(s=>{
+    const k=s.profile.name+'|'+s.profile.team;
+    if(!players[k])players[k]={name:s.profile.name,team:s.profile.team,age:s.profile.age,sessions:[]};
+    players[k].sessions.push(s);
+  });
+
+  const playerKeys=Object.keys(players);
+  let currentPlayer=playerKeys[0];
+
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+    <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.4rem;letter-spacing:.04em;text-transform:uppercase;">Performance History</h2>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="playerFilter" onchange="renderHistoryForPlayer(this.value)" style="background:var(--card2);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);padding:7px 10px;color:var(--white);font-family:'Barlow',sans-serif;font-size:.85rem;outline:none;">`;
+  playerKeys.forEach(k=>{html+=`<option value="${k}">${players[k].name} — ${players[k].team}</option>`;});
+  html+=`</select></div></div><div id="playerHistoryContent"></div>`;
+  el.innerHTML=html;
+  renderHistoryForPlayer(currentPlayer,players);
+
+  // Expose players globally for the onchange
+  window._historyPlayers=players;
+}
+
+function renderHistoryForPlayer(playerKey, playersArg){
+  const players=playersArg||window._historyPlayers;
+  if(!players)return;
+  const player=players[playerKey];
+  if(!player)return;
+  const sessions=player.sessions.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const el=document.getElementById('playerHistoryContent');
+
+  // Summary cards
+  const totalSessions=sessions.length;
+  const avgPct=Math.round(sessions.reduce((a,s)=>a+(s.pct||0),0)/totalSessions);
+  const best=sessions.reduce((a,s)=>s.pct>a.pct?s:a,sessions[0]);
+  const last=sessions[sessions.length-1];
+  const trend=sessions.length>1?(last.pct-(sessions[sessions.length-2].pct||0)):null;
+
+  let html=`<div style="margin-bottom:12px;font-size:.82rem;color:var(--grey);">
+    <strong style="color:var(--white);">${player.name}</strong> · ${player.team}${player.age?' · Age '+player.age:''}
+  </div>
+  <div class="summary-cards">
+    <div class="sum-card"><div class="sum-card-val">${totalSessions}</div><div class="sum-card-label">Sessions</div></div>
+    <div class="sum-card"><div class="sum-card-val">${avgPct}%</div><div class="sum-card-label">Avg Conversion</div></div>
+    <div class="sum-card"><div class="sum-card-val">${best.pct}%</div><div class="sum-card-label">Best Session</div></div>
+    <div class="sum-card"><div class="sum-card-val" style="color:${trend===null?'var(--grey)':trend>=0?'var(--scored)':'var(--missed)'};">${trend===null?'—':(trend>=0?'+':'')+trend+'%'}</div><div class="sum-card-label">vs Prev Session</div></div>
+  </div>`;
+
+  // Trend chart
+  html+=`<div class="trend-section"><h3>Conversion Trend</h3><div class="chart-wrap"><canvas id="trendChart" height="80"></canvas></div></div>`;
+
+  // Zone trend
+  html+=`<div class="trend-section"><h3>Zone Averages (all sessions)</h3><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">`;
+  const zones={'14':{name:'14 Yards',cls:'bar-14'},'21':{name:'21 Yards',cls:'bar-21'},'45':{name:'45 Yards',cls:'bar-45'},'mid':{name:'Midfield',cls:'bar-mid'}};
+  Object.entries(zones).forEach(([z,{name,cls}])=>{
+    let ts=0,tt=0;
+    sessions.forEach(s=>{if(s.zones&&s.zones[z]){ts+=s.zones[z][0];tt+=s.zones[z][1];}});
+    const p=pct(ts,tt);
+    html+=`<div class="sum-card" style="text-align:left;padding:12px;">
+      <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--grey);margin-bottom:5px;">${name}</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.5rem;color:${colourFromPct(p)};">${fmtPct(p)}</div>
+      <div style="font-size:.68rem;color:var(--grey);">${ts}/${tt}</div>
+      <div class="zone-bar-wrap" style="margin-top:8px;"><div class="zone-bar ${cls}" style="width:${p??0}%;"></div></div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // Angle averages
+  html+=`<div class="trend-section"><h3>Angle Averages</h3><div class="angle-grid">`;
+  ['left','centre','right'].forEach(a=>{
+    let ts=0,tt=0;
+    sessions.forEach(s=>{if(s.angles&&s.angles[a]){ts+=s.angles[a][0];tt+=s.angles[a][1];}});
+    const p=pct(ts,tt);
+    html+=`<div class="angle-cell"><div class="angle-cell-label">${a==='left'?'◀ Left':a==='centre'?'▲ Centre':'▶ Right'}</div><div class="angle-cell-score" style="color:${colourFromPct(p)};">${fmtScore(ts,tt)}</div><div class="angle-cell-pct">${fmtPct(p)}</div></div>`;
+  });
+  html+=`</div></div>`;
+
+  // Sessions table
+  html+=`<div class="trend-section"><h3>All Sessions</h3>
+  <table class="sessions-table">
+    <thead><tr><th>Date</th><th>Score</th><th>%</th><th>Best Zone</th><th>Focus</th></tr></thead><tbody>`;
+  [...sessions].reverse().forEach(s=>{
+    const d=new Date(s.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'});
+    const pChip=s.pct>=75?'pct-high':s.pct>=50?'pct-mid':'pct-low';
+    const zoneArr=s.zones?Object.entries(s.zones).map(([z,[sc,t]])=>({z,p:pct(sc,t)})).filter(x=>x.p!==null):[];
+    const bestZ=zoneArr.length?zoneArr.reduce((a,b)=>b.p>a.p?b:a):null;
+    const zl={'14':'14y','21':'21y','45':'45y','mid':'Mid'};
+    // Focus: which third was best
+    let focusStr='—';
+    if(s.thirds){
+      const tPcts=s.thirds.map((t,i)=>({i,p:pct(t.s,t.t)})).filter(x=>x.p!==null);
+      if(tPcts.length){const best=tPcts.reduce((a,b)=>b.p>a.p?b:a);focusStr=['Early','Mid','Late'][best.i];}
+    }
+    html+=`<tr><td>${d}</td><td>${s.scored}/${s.taken}</td><td><span class="pct-chip ${pChip}">${s.pct}%</span></td><td>${bestZ?zl[bestZ.z]+' ('+bestZ.p+'%)':'—'}</td><td>${focusStr}</td></tr>`;
+  });
+  html+=`</tbody></table></div>`;
+
+  el.innerHTML=html;
+
+  // Draw chart
+  const labels=sessions.map(s=>new Date(s.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}));
+  const data=sessions.map(s=>s.pct||0);
+  if(trendChart)trendChart.destroy();
+  const ctx=document.getElementById('trendChart').getContext('2d');
+  trendChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'Conversion %',
+        data,
+        borderColor:'#e8b84b',
+        backgroundColor:'rgba(232,184,75,0.1)',
+        borderWidth:2,
+        pointBackgroundColor:'#e8b84b',
+        pointRadius:4,
+        tension:0.35,
+        fill:true
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y}%`}}},
+      scales:{
+        y:{min:0,max:100,ticks:{color:'#8a9a8a',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,0.06)'}},
+        x:{ticks:{color:'#8a9a8a'},grid:{color:'rgba(255,255,255,0.06)'}}
+      }
+    }
+  });
+}
+
+function pct(s,t){if(!t)return null;return Math.round((s/t)*100);}
+function fmtPct(p){return p===null?'—':p+'%';}
+function fmtScore(s,t){return t===0?'0/0':`${s}/${t}`;}
+function colourFromPct(p){if(p===null)return'var(--grey)';if(p>=75)return'var(--scored)';if(p>=50)return'var(--gold)';return'var(--missed)';}
+
+// ── INIT ──
+(function(){
+  try{
+    var savedProfile=lsGet('ftsc_profile');
+    if(savedProfile){
+      var p=JSON.parse(savedProfile);
+      profile=p;
+      document.getElementById('pName').value=p.name||'';
+      document.getElementById('pAge').value=p.age||'';
+      document.getElementById('pTeam').value=p.team||'';
+      document.getElementById('pPos').value=p.pos||'';
+      document.getElementById('headerPlayerName').textContent=p.name;
+      switchView('viewScore');renderSpots();updateStats();
+    }
+  }catch(e){/* fresh start — storage blocked or corrupt */}
+})();
+
+
+
+// ── WEBVIEW DETECTION ──
+function checkWebView(){
+  var ua = navigator.userAgent || '';
+  var standalone = ('standalone' in navigator && navigator.standalone);
+  var isWebView = (
+    /FBAN|FBAV|FB_IAB/.test(ua) ||
+    /WhatsApp/.test(ua) ||
+    /wv/.test(ua) ||
+    (/(iPhone|iPod|iPad)/.test(ua) && !/Safari\//.test(ua) && /AppleWebKit/.test(ua) && !standalone)
+  );
+  // Fallback: localStorage blocked = almost certainly a restricted WebView
+  var storageBlocked = false;
+  try{ localStorage.setItem('_t','1'); localStorage.removeItem('_t'); }
+  catch(e){ storageBlocked = true; }
+  if(isWebView || storageBlocked){
+    var b = document.getElementById('webviewBanner');
+    if(b){ b.style.display='flex'; }
+  }
+}
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded', checkWebView);
+} else {
+  checkWebView();
+}
+</script>
+</body>
+</html>
